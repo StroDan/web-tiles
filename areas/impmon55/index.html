@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Floating Toad</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #2a2230; }
+    #toad {
+      position: absolute; left: 0; top: 0;
+      width: 128px; height: 96px;   /* 16 x 12 pixels, each shown 8 times bigger */
+      image-rendering: pixelated;   /* keep the pixels sharp, not blurry */
+    }
+    #help {
+      position: fixed; left: 16px; bottom: 12px; margin: 0;
+      font: 16px sans-serif; color: #d6cfe0;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="toad" width="16" height="12"></canvas>
+  <p id="help">Click to send the toad to the pointer. Arrow keys push it.</p>
+  <script>
+    // ---- Draw the toad, one pixel per letter ----
+    // Each string is one row. Each letter is a colour; "." is see-through.
+    const art = [
+      "..GGG......GGG..",
+      ".GWWKG....GWWKG.",
+      ".GWWKGGGGGGWWKG.",
+      "GGDGGGGGGGGGGDGG",
+      "GGGGGGGGGGGGGGGG",
+      "GMMMMMMMMMMMMMMG",
+      "GGGDGGGGGGGGDGGG",
+      "GGYYYYYYYYYYYYGG",
+      "GGYYYYYYYYYYYYGG",
+      ".GGYYYYYYYYYYGG.",
+      ".GGGYYYYYYYYGGG.",
+      "GGG..........GGG",
+    ];
+    const colours = {
+      G: "#5f9e3a", // green skin
+      D: "#3f6e25", // dark green warts
+      W: "#ffffff", // white of the eyes
+      K: "#111111", // pupils
+      M: "#2b4a1a", // mouth
+      Y: "#d9d27a", // pale belly
+    };
+
+    const toad = document.getElementById("toad");
+    const pen = toad.getContext("2d");
+    art.forEach((row, y) => {
+      [...row].forEach((letter, x) => {
+        if (letter === ".") return;      // leave this pixel empty
+        pen.fillStyle = colours[letter];
+        pen.fillRect(x, y, 1, 1);        // one pixel
+      });
+    });
+
+    // ---- Make it float ----
+    const w = 128, h = 96;               // size on screen
+    let x = 200, y = 150, vx = 2, vy = 1.5;
+    let t = 0;                           // time counter for the up-and-down bob
+
+    // Click: jump to where the pointer is.
+    window.addEventListener("click", (e) => {
+      x = e.clientX - w / 2;
+      y = e.clientY - h / 2;
+    });
+
+    // Arrow keys: add speed in that direction.
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft")  vx -= 1;
+      if (e.key === "ArrowRight") vx += 1;
+      if (e.key === "ArrowUp")    vy -= 1;
+      if (e.key === "ArrowDown")  vy += 1;
+      if (e.key.startsWith("Arrow")) e.preventDefault(); // stop the page scrolling
+    });
+
+    function step() {
+      x += vx;
+      y += vy;
+      // Bounce off the window edges.
+      const maxX = window.innerWidth - w, maxY = window.innerHeight - h;
+      if (x < 0 || x > maxX) { vx = -vx; x = Math.min(Math.max(x, 0), maxX); }
+      if (y < 0 || y > maxY) { vy = -vy; y = Math.min(Math.max(y, 0), maxY); }
+
+      t += 0.05;
+      const bob = Math.sin(t) * 8;       // drift up and down by up to 8 pixels
+      toad.style.transform = `translate(${x}px, ${y + bob}px)`;
+
+      requestAnimationFrame(step);       // run step() again on the next frame
+    }
+    step();
+  </script>
+</body>
+</html>
