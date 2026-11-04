@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bubbles</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; }
+    body { background: linear-gradient(#ffd6e8, #c9e7ff); font-family: sans-serif; }
+    canvas { display: block; }
+    #info {
+      position: fixed; left: 16px; bottom: 12px; margin: 0;
+      color: #5a4a6a; font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="sky"></canvas>
+  <p id="info">Popped: <span id="count">0</span> · Click a bubble to pop it. Space adds bubbles. C clears.</p>
+
+  <script>
+    const canvas = document.getElementById("sky");
+    const ctx = canvas.getContext("2d");
+    const countEl = document.getElementById("count");
+
+    let bubbles = [];  // bubbles still floating
+    let bursts = [];   // fading rings left by popped bubbles
+    let popped = 0;
+
+    // Make the canvas match the window, now and whenever it is resized.
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener("resize", resize);
+    resize();
+
+    function makeBubble(x, y) {
+      return {
+        x: x,
+        y: y,
+        r: 12 + Math.random() * 30,            // radius in pixels
+        speed: 0.4 + Math.random() * 1.2,      // pixels risen per frame
+        hue: Math.floor(Math.random() * 360),  // color around the color wheel
+        phase: Math.random() * Math.PI * 2     // where it is in its sway
+      };
+    }
+
+    function addRandomBubbles(n) {
+      for (let i = 0; i < n; i++) {
+        bubbles.push(makeBubble(Math.random() * canvas.width, Math.random() * canvas.height));
+      }
+    }
+
+    // Clicking a bubble pops it; clicking empty space blows 5 new ones.
+    canvas.addEventListener("click", function (event) {
+      const x = event.clientX, y = event.clientY;
+      // Check from the end so the bubble drawn on top is popped first.
+      for (let i = bubbles.length - 1; i >= 0; i--) {
+        const b = bubbles[i];
+        if (Math.hypot(b.x - x, b.y - y) < b.r) {
+          bubbles.splice(i, 1);
+          bursts.push({ x: b.x, y: b.y, r: b.r, hue: b.hue, life: 1 });
+          popped++;
+          countEl.textContent = popped;
+          return;
+        }
+      }
+      for (let i = 0; i < 5; i++) bubbles.push(makeBubble(x, y));
+    });
+
+    window.addEventListener("keydown", function (event) {
+      if (event.key === " ") {
+        event.preventDefault();  // stop Space from scrolling the page
+        for (let i = 0; i < 10; i++) {
+          bubbles.push(makeBubble(Math.random() * canvas.width, canvas.height + 40));
+        }
+      } else if (event.key === "c" || event.key === "C") {
+        bubbles = [];
+      }
+    });
+
+    function drawBubble(b) {
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.fillStyle = "hsla(" + b.hue + ", 80%, 75%, 0.35)";
+      ctx.fill();
+      ctx.strokeStyle = "hsla(" + b.hue + ", 70%, 55%, 0.8)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // A small white shine in the upper left makes it look round.
+      ctx.beginPath();
+      ctx.arc(b.x - b.r * 0.35, b.y - b.r * 0.35, b.r * 0.2, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+      ctx.fill();
+    }
+
+    // Runs about 60 times a second: move everything, then draw it.
+    function frame() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      for (const b of bubbles) {
+        b.y -= b.speed;
+        b.phase += 0.02;
+        b.x += Math.sin(b.phase) * 0.5;
+        if (b.y < -b.r) {          // off the top: come back at the bottom
+          b.y = canvas.height + b.r;
+        }
+        drawBubble(b);
+      }
+
+      for (const p of bursts) {
+        p.life -= 0.04;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r * (2 - p.life), 0, Math.PI * 2);
+        ctx.strokeStyle = "hsla(" + p.hue + ", 70%, 55%, " + Math.max(p.life, 0) + ")";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+      bursts = bursts.filter(function (p) { return p.life > 0; });
+
+      requestAnimationFrame(frame);
+    }
+
+    addRandomBubbles(30);
+    frame();
+  </script>
+</body>
+</html>
